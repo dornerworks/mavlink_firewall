@@ -7,64 +7,90 @@ use vstd::prelude::*;
 
 verus! {
 
-fn firewall(packet: &[u8]) -> (r: bool)
-    ensures
-        match spec_mavlink_msg().spec_parse(packet@) {
-            Some((size, val)) => r == !spec_msg_is_flash_bootloader(val),
-            None => r == false,
-        }
+pub open spec fn spec_firewall(packet: Seq<u8>) -> bool
 {
-        match parse_mavlink_msg(packet) {
-            Ok((_curr_len, msg)) => {
-                can_send(&msg)
-            }
-            Err(e) => {
-                false
-            }
-        }
+    match spec_mavlink_msg().spec_parse(packet) {
+        Some((_, msg)) => spec_can_send(msg),
+        None => false,
+    }
+}
 
+pub open spec fn spec_can_send(msg: SpecMavlinkMsg) -> bool
+{
+    !spec_msg_is_flash_bootloader(msg)
 }
 
 pub open spec fn spec_msg_is_flash_bootloader(msg: SpecMavlinkMsg) -> bool
 {
-    (msg.msg is MavLink1 &&
-        msg.msg->MavLink1_0.payload is CommandInt &&
-        msg.msg->MavLink1_0.payload->CommandInt_0.command == MavCmd::SPEC_FlashBootloader) ||
-    (msg.msg is MavLink1 &&
-        msg.msg->MavLink1_0.payload is CommandLong &&
-        msg.msg->MavLink1_0.payload->CommandLong_0.command == MavCmd::SPEC_FlashBootloader) ||
-    (msg.msg is MavLink2 &&
-        msg.msg->MavLink2_0.payload is CommandInt &&
-        msg.msg->MavLink2_0.payload->CommandInt_0.command == MavCmd::SPEC_FlashBootloader) ||
-    (msg.msg is MavLink2 &&
-        msg.msg->MavLink2_0.payload is CommandLong &&
-        msg.msg->MavLink2_0.payload->CommandLong_0.command == MavCmd::SPEC_FlashBootloader)
+    spec_msg_v1_is_flash_bootloader(msg) || spec_msg_v2_is_flash_bootloader(msg)
+}
+
+pub open spec fn spec_msg_v1_is_flash_bootloader(msg: SpecMavlinkMsg) -> bool
+{
+    msg.msg is MavLink1 &&
+        ((msg.msg->MavLink1_0.payload is CommandInt &&
+            msg.msg->MavLink1_0.payload->CommandInt_0.command == MavCmd::SPEC_FlashBootloader) ||
+        (msg.msg->MavLink1_0.payload is CommandLong &&
+            msg.msg->MavLink1_0.payload->CommandLong_0.command == MavCmd::SPEC_FlashBootloader))
+}
+
+pub open spec fn spec_msg_v2_is_flash_bootloader(msg: SpecMavlinkMsg) -> bool
+{
+    msg.msg is MavLink2 &&
+        ((msg.msg->MavLink2_0.payload is CommandInt &&
+            msg.msg->MavLink2_0.payload->CommandInt_0.command == MavCmd::SPEC_FlashBootloader) ||
+        (msg.msg->MavLink2_0.payload is CommandLong &&
+            msg.msg->MavLink2_0.payload->CommandLong_0.command == MavCmd::SPEC_FlashBootloader))
+}
+
+fn firewall(packet: &[u8]) -> (r: bool)
+    ensures
+        r == spec_firewall(packet@)
+{
+    match parse_mavlink_msg(packet) {
+        Ok((_, msg)) => can_send(&msg),
+        Err(_) => false,
+    }
 }
 
 fn can_send(msg: &MavlinkMsg) -> (r: bool)
     ensures
-        spec_msg_is_flash_bootloader(msg@) == (r == false)
+        r == spec_can_send(msg@),
 {
-    match &msg.msg {
+    !msg_is_flash_bootloader(msg)
+}
+
+fn msg_is_flash_bootloader(msg: &MavlinkMsg) -> (r: bool)
+    ensures
+         r == spec_msg_is_flash_bootloader(msg@)
+{
+    let command = match &msg.msg {
         MavlinkMsgMsg::MavLink1(v1_msg) => match &v1_msg.payload {
             MavlinkV1MsgPayload::CommandInt(cmd_int) => {
-                cmd_int.command != MavCmd::FlashBootloader
+                Some(cmd_int.command)
             }
             MavlinkV1MsgPayload::CommandLong(cmd_long) => {
-                cmd_long.command != MavCmd::FlashBootloader
+                Some(cmd_long.command)
             }
-            _ => true,
+            _ => None,
         },
         MavlinkMsgMsg::MavLink2(v2_msg) => match &v2_msg.payload {
             MavlinkV2MsgPayload::CommandInt(cmd_int) => {
-                cmd_int.command != MavCmd::FlashBootloader
+                Some(cmd_int.command)
             }
             MavlinkV2MsgPayload::CommandLong(cmd_long) => {
-                cmd_long.command != MavCmd::FlashBootloader
+                Some(cmd_long.command)
             }
-            _ => true,
+            _ => None,
         },
+
+    };
+
+    match command {
+        Some(cmd) => cmd == MavCmd::FlashBootloader,
+        None => false,
     }
+
 }
 
 }
