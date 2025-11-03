@@ -14,13 +14,12 @@ mavlink_v2_msg = {
 	seq: u8,                            ///< Sequence of packet
 	sysid: u8 | 1..,                    ///< ID of message sender system/aircraft
 	compid: u8 | 1..,                   ///< ID of the message sender component
-	@msgid: message_ids,                ///< ID of the message
+	@msgid: message_ids_v2,             ///< ID of the message
 	// The [u8; @len] >>= is needed to make sure that the parser catches if the provided size is larger than the expected payload type.
 	payload: [u8; @len] >>= choose (@msgid) {
 		CommandInt => command_int,
 		CommandLong => command_long,
 		CommandAck => command_ack,
-		TerrainRequest => terrain_request,
 		_ => [u8; @len],
 	},                                  ///< A maximum of 255 payload bytes
 	checksum: u16,                      ///< CRC-16/MCRF4XX
@@ -33,13 +32,18 @@ mavlink_v2_msg = {
 
 
 mavlink_v1_msg = {
-	@len: u8,             ///< Length of payload
-	seq: u8,              ///< Sequence of packet
-	sysid: u8 | 1..,      ///< ID of message sender system/aircraft
-	compid: u8 | 1..,     ///< ID of the message sender component
-	msgid: u8,            ///< ID of the message
-	payload: [u8; @len],  ///< A maximum of 255 payload bytes
-	checksum: u16,        ///< CRC-16/MCRF4XX
+	@len: u8,              ///< Length of payload
+	seq: u8,               ///< Sequence of packet
+	sysid: u8 | 1..,       ///< ID of message sender system/aircraft
+	compid: u8 | 1..,      ///< ID of the message sender component
+	@msgid: message_ids_v1, ///< ID of the message
+	payload: [u8; @len] >>= choose (@msgid) {
+		CommandInt => command_int,
+		CommandLong => command_long,
+		CommandAck => command_ack,
+		_ => [u8; @len],
+	},                     ///< A maximum of 255 payload bytes
+	checksum: u16,         ///< CRC-16/MCRF4XX
 }
 
 
@@ -56,13 +60,19 @@ incompat_flags = enum {
 }
 
 // u24 for mavlink v2
-message_ids = enum {
+message_ids_v2 = enum {
 	CommandInt = 75,
 	CommandLong = 76,
 	CommandAck = 77,
-	CommandCancel = 80, // This says WIP. Should we have this Need this?
-	TerrainRequest = 134,
 	Reserved = 0x800000, // Need to put this so the enum is generated as a u24.
+	...
+}
+
+// u8 for mavlink v1
+message_ids_v1 = enum {
+	CommandInt = 75,
+	CommandLong = 76,
+	CommandAck = 77,
 	...
 }
 
@@ -164,11 +174,4 @@ mav_result = enum {
 	COMMAND_INT_ONLY = 8,               // Command is only accepted when sent as a COMMAND_INT.
 	COMMAND_UNSUPPORTED_MAV_FRAME = 9,  // Command is invalid because a frame is required and the specified frame is not supported.
 	NOT_IN_CONTROL = 10,                // Command has been rejected because source system is not in control of the target system/component.
-}
-
-terrain_request = {
-	lat: u32,  // Latitude of SW corner of first grid
-	lon: u32,  // Longitude of SW corner of first grid
-	grid_spacing: u16,  // Grid spacing
-	mask: u64,  // Bitmask of requested 4x4 grids (row major 8x7 array of grids, 56 bits)
 }
