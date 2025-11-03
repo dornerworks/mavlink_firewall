@@ -1,16 +1,9 @@
 use mavlink_parser_vest::{
-    CommandAck, CommandInt, MavlinkMsg, MavlinkMsgCombinator, MavlinkMsgMsg,
-    MavlinkV1MsgCombinatorAlias, MavlinkV1MsgPayload, MavlinkV2MsgPayload, SpecMavlinkMsg,
-    SpecMavlinkMsgCombinator, mavlink_msg, parse_mavlink_msg, spec_mavlink_msg,
-    spec_mavlink_msg_msg,
+    MavCmd, MavlinkMsg, MavlinkMsgMsg, MavlinkV1MsgPayload, MavlinkV2MsgPayload, SpecMavlinkMsg,
+    parse_mavlink_msg, spec_mavlink_msg,
 };
-use vest::buf_traits::From;
-use vest::errors::ParseError;
-use vest::properties::SecureSpecCombinator;
-use vest::properties::{Combinator, SpecCombinator};
-use vest::utils::SpecInto;
+use vest::properties::SpecCombinator;
 use vstd::prelude::*;
-use vstd::slice::slice_subrange;
 
 verus! {
 
@@ -32,22 +25,20 @@ fn firewall(packet: &[u8]) -> (r: bool)
 
 }
 
-
 pub open spec fn spec_msg_is_flash_bootloader(msg: SpecMavlinkMsg) -> bool
 {
     (msg.msg is MavLink1 &&
         msg.msg->MavLink1_0.payload is CommandInt &&
-        msg.msg->MavLink1_0.payload->CommandInt_0.command == mavlink_parser_vest::MavCmd::SPEC_FlashBootloader) ||
+        msg.msg->MavLink1_0.payload->CommandInt_0.command == MavCmd::SPEC_FlashBootloader) ||
     (msg.msg is MavLink1 &&
         msg.msg->MavLink1_0.payload is CommandLong &&
-        msg.msg->MavLink1_0.payload->CommandLong_0.command == mavlink_parser_vest::MavCmd::SPEC_FlashBootloader) ||
+        msg.msg->MavLink1_0.payload->CommandLong_0.command == MavCmd::SPEC_FlashBootloader) ||
     (msg.msg is MavLink2 &&
         msg.msg->MavLink2_0.payload is CommandInt &&
-        msg.msg->MavLink2_0.payload->CommandInt_0.command == mavlink_parser_vest::MavCmd::SPEC_FlashBootloader) ||
+        msg.msg->MavLink2_0.payload->CommandInt_0.command == MavCmd::SPEC_FlashBootloader) ||
     (msg.msg is MavLink2 &&
         msg.msg->MavLink2_0.payload is CommandLong &&
-        msg.msg->MavLink2_0.payload->CommandLong_0.command == mavlink_parser_vest::MavCmd::SPEC_FlashBootloader)
-
+        msg.msg->MavLink2_0.payload->CommandLong_0.command == MavCmd::SPEC_FlashBootloader)
 }
 
 fn can_send(msg: &MavlinkMsg) -> (r: bool)
@@ -57,19 +48,19 @@ fn can_send(msg: &MavlinkMsg) -> (r: bool)
     match &msg.msg {
         MavlinkMsgMsg::MavLink1(v1_msg) => match &v1_msg.payload {
             MavlinkV1MsgPayload::CommandInt(cmd_int) => {
-                cmd_int.command != mavlink_parser_vest::MavCmd::FlashBootloader
+                cmd_int.command != MavCmd::FlashBootloader
             }
             MavlinkV1MsgPayload::CommandLong(cmd_long) => {
-                cmd_long.command != mavlink_parser_vest::MavCmd::FlashBootloader
+                cmd_long.command != MavCmd::FlashBootloader
             }
             _ => true,
         },
         MavlinkMsgMsg::MavLink2(v2_msg) => match &v2_msg.payload {
             MavlinkV2MsgPayload::CommandInt(cmd_int) => {
-                cmd_int.command != mavlink_parser_vest::MavCmd::FlashBootloader
+                cmd_int.command != MavCmd::FlashBootloader
             }
             MavlinkV2MsgPayload::CommandLong(cmd_long) => {
-                cmd_long.command != mavlink_parser_vest::MavCmd::FlashBootloader
+                cmd_long.command != MavCmd::FlashBootloader
             }
             _ => true,
         },
