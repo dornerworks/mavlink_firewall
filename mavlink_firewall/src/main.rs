@@ -1,6 +1,9 @@
 use mavlink_parser_vest::{
-    MavCmd, MavlinkMsg, MavlinkMsgMsg, MavlinkV1MsgPayload, MavlinkV2MsgPayload, SpecMavlinkMsg,
-    parse_mavlink_msg, spec_mavlink_msg,
+    MavCmd, MavlinkMsg, MavlinkMsgMsg, MavlinkV1MsgPayload, MavlinkV2MsgPayload, parse_mavlink_msg,
+};
+use mavlink_parser_vest::{
+    SpecMavlinkMsg, SpecMavlinkMsgMsg, SpecMavlinkV1MsgPayload, SpecMavlinkV2MsgPayload,
+    spec_mavlink_msg,
 };
 use vest::properties::SpecCombinator;
 use vstd::prelude::*;
@@ -27,20 +30,22 @@ pub open spec fn spec_msg_is_flash_bootloader(msg: SpecMavlinkMsg) -> bool
 
 pub open spec fn spec_msg_v1_is_flash_bootloader(msg: SpecMavlinkMsg) -> bool
 {
-    msg.msg is MavLink1 &&
-        ((msg.msg->MavLink1_0.payload is CommandInt &&
-            msg.msg->MavLink1_0.payload->CommandInt_0.command == MavCmd::SPEC_FlashBootloader) ||
-        (msg.msg->MavLink1_0.payload is CommandLong &&
-            msg.msg->MavLink1_0.payload->CommandLong_0.command == MavCmd::SPEC_FlashBootloader))
+    msg.msg matches SpecMavlinkMsgMsg::MavLink1(mv1) &&
+        match mv1.payload {
+            SpecMavlinkV1MsgPayload::CommandInt(pay) => pay.command == MavCmd::SPEC_FlashBootloader,
+            SpecMavlinkV1MsgPayload::CommandLong(pay) => pay.command == MavCmd::SPEC_FlashBootloader,
+            _ => false
+        }
 }
 
 pub open spec fn spec_msg_v2_is_flash_bootloader(msg: SpecMavlinkMsg) -> bool
 {
-    msg.msg is MavLink2 &&
-        ((msg.msg->MavLink2_0.payload is CommandInt &&
-            msg.msg->MavLink2_0.payload->CommandInt_0.command == MavCmd::SPEC_FlashBootloader) ||
-        (msg.msg->MavLink2_0.payload is CommandLong &&
-            msg.msg->MavLink2_0.payload->CommandLong_0.command == MavCmd::SPEC_FlashBootloader))
+    msg.msg matches SpecMavlinkMsgMsg::MavLink2(mv2) &&
+        match mv2.payload {
+            SpecMavlinkV2MsgPayload::CommandInt(pay) => pay.command == MavCmd::SPEC_FlashBootloader,
+            SpecMavlinkV2MsgPayload::CommandLong(pay) => pay.command == MavCmd::SPEC_FlashBootloader,
+            _ => false
+        }
 }
 
 fn firewall(packet: &[u8]) -> (r: bool)
